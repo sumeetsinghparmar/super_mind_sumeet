@@ -155,6 +155,51 @@ h1{
 }
 /* --------------------------------------------- */
 
+/* UPLOAD BUTTON ---------------------------------- */
+
+ /* Hide the file input */
+ #dataFile {
+  display: none;
+}
+
+/* Style for the Upload button */
+#uploadBtn {
+  z-index: 10;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: row;
+}
+
+/* Button animation while uploading */
+.uploading {
+  background-color: #94fb1f61 !important;
+  pointer-events: none;
+  padding-left: 10px !important;
+  padding-right: 20px !important;
+}
+
+/* Spinner animation */
+.spinner {
+  border: 3px solid transparent;
+  border-top: 3px solid #000;
+  border-bottom: 3px solid #000;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.5s linear infinite;
+  margin: 0 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ------------------------------------- */
+
 /* Table CSS (START) ------------------------- */
 .avg_table_section, .data_table_section {
   margin: 0 100px;

@@ -680,3 +680,50 @@
         box.style.transform = 'translateZ(0)'; // Reset depth
       });
     });
+
+    const uploadButton = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('dataFile');
+    const form = document.getElementById('uploadForm');
+
+    // Trigger the file input click when the button is clicked
+    uploadButton.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // Handle file selection
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Show spinner and change button state while uploading
+      uploadButton.classList.add('uploading');
+      uploadButton.innerHTML = '<div class="spinner"></div> Uploading';
+
+      // Create a FormData object and append the file
+      const formData = new FormData();
+      formData.append('dataFile', file);
+
+      try {
+        // Upload the file
+        const response = await fetch('/api/uploadData', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert(result.message);
+          window.location.reload();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Upload Error:", error);
+        alert("Failed to upload data. Please try again.");
+      } finally {
+        // Reset button and hide spinner after upload completes
+        uploadButton.classList.remove('uploading');
+        uploadButton.innerHTML = 'Upload';
+      }
+    });

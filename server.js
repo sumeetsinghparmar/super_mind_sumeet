@@ -2,12 +2,19 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
+const { DataAPIClient } = require('@datastax/astra-db-ts');
 
+const multer = require('multer');
+const fs = require('fs'); // Add this line at the top of your file
+
+const upload = multer({ dest: 'uploads/' }); // Temporary upload directory
 
 const app = express();
 const PORT = 3000;
 
+var LANGFLOW_APP_TOKEN = process.env.LANGFLOW_APP_TOKEN;
 var DATASTAX_APP_TOKEN = process.env.DATASTAX_APP_TOKEN;
+var DATASTAX_DB_URL = process.env.DATASTAX_DB_URL;
 
 class LangflowClient {
   constructor(baseURL, applicationToken) {
@@ -83,7 +90,7 @@ class LangflowClient {
 async function main_data_fetcher(inputValue, inputType = 'chat', outputType = 'chat', stream = false) {
   const flowIdOrName = 'a1e09cf6-ac31-4420-b063-47f7ab01fd04';
   const langflowId = '114f75bd-3f1f-4b83-9b32-56c3b78c2082';
-  const applicationToken = DATASTAX_APP_TOKEN;
+  const applicationToken = LANGFLOW_APP_TOKEN;
   const langflowClient = new LangflowClient('https://api.langflow.astra.datastax.com', applicationToken);
 
   try {
@@ -121,7 +128,7 @@ async function main_data_fetcher(inputValue, inputType = 'chat', outputType = 'c
 async function main_insight_fetcher(inputValue, inputType = 'chat', outputType = 'chat', stream = false) {
   const flowIdOrName = 'bacd954c-6ab4-4984-b513-a379ac91650b';
   const langflowId = '114f75bd-3f1f-4b83-9b32-56c3b78c2082';
-  const applicationToken = DATASTAX_APP_TOKEN;
+  const applicationToken = LANGFLOW_APP_TOKEN;
   const langflowClient = new LangflowClient('https://api.langflow.astra.datastax.com',
       applicationToken);
 
@@ -246,6 +253,7 @@ app.get('/api/fetchData', async (req, res) => {
   }
 });
 
+
 app.get('/api/fetchInsights', async (req, res) => {
 
   const inputValue = req.query.inputValue || "";
@@ -262,6 +270,69 @@ app.get('/api/fetchInsights', async (req, res) => {
   }
 
 });
+
+
+
+app.post('/api/uploadData', upload.single('dataFile'), async (req, res) => {
+  const collectionName = 'mock_account_data';
+
+  try {
+    // Check if a file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    // Read and parse the uploaded file
+    const filePath = req.file.path;
+    const fileContents = fs.readFileSync(filePath, 'utf-8');
+    const jsonData = JSON.parse(fileContents);
+
+    // Validate the data format
+    if (!Array.isArray(jsonData) || jsonData.length === 0) {
+      fs.unlinkSync(filePath); // Remove the uploaded file
+      return res.status(400).json({ error: 'Invalid JSON format. Expected an array of objects.' });
+    }
+
+    // Verify the structure of each object in the array
+    for (const obj of jsonData) {
+      if (
+        typeof obj.postId !== 'string' ||
+        typeof obj.postType !== 'string' ||
+        typeof obj.likes !== 'number' ||
+        typeof obj.shares !== 'number' ||
+        typeof obj.comments !== 'number' ||
+        typeof obj.reach !== 'number'
+      ) {
+        fs.unlinkSync(filePath); // Remove the uploaded file
+        return res.status(400).json({ error: 'Invalid data format. Each object must contain "postId", "postType", "likes", "shares", "comments", and "reach" with correct types.' });
+      }
+    }
+
+    // Initialize Astra DB client
+    const client = new DataAPIClient(DATASTAX_APP_TOKEN);
+    const db = client.db(DATASTAX_DB_URL); // Replace with your DB URL
+    const collection = db.collection(collectionName);
+
+    // Delete all existing documents in the collection
+    await collection.deleteMany({});
+
+    // Insert the new data into the collection
+    const insertPromises = jsonData.map((doc) => collection.insertOne(doc));
+    await Promise.all(insertPromises);
+
+    // Cleanup uploaded file
+    fs.unlinkSync(filePath);
+
+    res.json({ message: `${jsonData.length} records have been uploaded successfully.` });
+  } catch (error) {
+    console.error('Upload Error:', error.message);
+    res.status(500).json({ error: 'An error occurred while processing the file.' });
+  }
+});
+
+
+
+
 
 
 // Start the server
